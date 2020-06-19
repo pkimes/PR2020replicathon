@@ -1,0 +1,230 @@
+---
+title: "Supplement: Dose-Response Modeling"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r echo=FALSE}
+knitr::opts_chunk$set(warning=FALSE)
+```
+
+## Introduction
+
+In this supplementary tutorial we will take a look at calculating the AUC and IC50 metrics based by fitting curves to the observed viability scores and drug concentrations in the raw pharmacological data. We will take a look at doing this using **logisitic regression**, and more briefly, using **linear regression**.
+
+The computed AUC and IC50 values are stored in a `RDS` file, `modelSummarizedPharmacoData.rds`, and explored in **Tutorial 2b**, "Digging Deeper with Drug Response Summarization". This tutorial walks through how those values were computed. 
+
+## Setup Workspace
+
+We start by loading the tidyverse family of packages and specifying a default plotting theme for our `ggplot` graphics.
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+## Load Summarized Dataset
+
+We will be using both the raw and summarized pharmacological data in this tutorial. 
+
+```{r read-rds}
+pharmacoData <- readRDS(file.path("..", "data", "rawPharmacoData.rds"))
+summarizedData <- readRDS(file.path("..", "data", "summarizedPharmacoData.rds"))
+```
+
+## Logistic Regression
+
+A common way to model viability response curves is to fit logistic regression models. If you have interest in knowing more about either logistic regression models or modeling approaches in general, [this book](http://www-bcf.usc.edu/~gareth/ISL/ISLR%20Sixth%20Printing.pdf) gives an excellent introduction to these topics. 
+
+The idea of a drug response model is that it should describe how the viability changes with as a function of the  drug concentration.
+
+Let's write a function that fits a logistic regression model on the data. The `fitLogisticModel` function defined below receives as input a drug, a cell line and a study, and fits a regression model, namely `viability ~ concentration` as described above, on these data.
+
+```{r}
+fitLogisticModel <- function(drugA, cellLineA, studyA){
+    pharSub <- filter( pharmacoData, drug==drugA, cellLine==cellLineA, study==studyA)
+    inRange <- pharSub$viability > 0 & pharSub$viability < 100
+    pharSub$viability <- round(pharSub$viability)
+    pharSub$concentration <- log10( pharSub$concentration )
+    maxVal <- pmax( pharSub$viability, 100 )
+    fit <- glm( cbind( viability, maxVal-viability ) ~ concentration,
+               pharSub, family=binomial )
+    fit
+}
+```
+
+Let's now use this function to fit models on the data. We will use the 
+two drug-cell line combinations mentioned in the first section of this vignette.
+		
+```{r}
+lrCCLE1 <- fitLogisticModel( "17-AAG", "H4", "CCLE" )
+lrGDSC1 <- fitLogisticModel( "17-AAG", "H4", "GDSC" )
+
+lrCCLE2 <- fitLogisticModel( "Nilotinib", "22RV1", "CCLE" )
+lrGDSC2 <- fitLogisticModel( "Nilotinib", "22RV1", "GDSC" )
+
+lrCCLE1
+lrCCLE2
+```
+
+Let's evaluate the logistic regression models by plotting the model and the raw data together. The function *predictValues* receives as input a fit and outputs response values predicted from such model. The *plotFit* function defined below enables the visualization of the model predictions together with the raw data.
+	
+```{r}
+predictValues <- function(fit, numPred = 1000) {
+    min <- min( fit$data$concentration )
+    max <- max( fit$data$concentration )
+    valuesToPredict <- seq(min, max, length.out=numPred)
+    predicted <- predict( fit,
+            data.frame(concentration=valuesToPredict),
+            type="response" )
+    data.frame( concentration=valuesToPredict,
+               viability=predicted*100 )
+}
+
+plotFit <- function(drugA, cellLineA, fitCCLE, fitGDSC) {
+    pharSub <- filter(pharmacoData, drug == drugA, cellLine == cellLineA)
+    sumSub <- filter(summarizedData, drug == drugA, cellLine == cellLineA)
+    p <- ggplot(pharSub, aes(x = log10(concentration), y = viability, color = study)) +
+        geom_point(size = 2.1) +
+        geom_line(lwd = 1.1) +
+        ylim(0, 150) +
+        scale_colour_manual(values = c("CCLE" = "#d95f02", "GDSC" = "#1b9e77")) +
+        xlim(range(log10(c(pharSub$concentration, sumSub$ic50_CCLE, sumSub$ic50_GDSC))))
+    p <- p +
+        geom_line(aes(concentration, viability),
+                  data = predictValues(fitCCLE), lwd = 1.2,
+                  linetype = "dashed", color = "#d95f02") +
+        geom_line(aes(concentration, viability),
+                  data = predictValues(fitGDSC), lwd = 1.2,
+                  linetype = "dashed", col = "#1b9e77")
+    p
+}
+```
+
+Now let's use these functions to evaluate the regression fits from the two drug-cell line combinations mentioned before. Ideally, we would like the regression model to be as close as possible to the individual data points. 
+
+```{r plotResponse}
+plotFit("17-AAG", "H4", fitCCLE = lrCCLE1, fitGDSC=lrGDSC1 )
+
+plotFit("Nilotinib", "22RV1", fitCCLE = lrCCLE2, fitGDSC = lrGDSC2) +
+    xlim(-2, 1.3)
+```
+
+### Estimating IC50 and AUC
+
+The following two subsections provide code implementations to compute the IC50 and AUC statistics for the drug-cell line combinations mentioned above. Notice that these implementations were **not** based on code from previous publications.
+
+Using the logistic models fitted before, let's estimate IC50 values by predicting the drug concentration value that the logistic regression model predicts to result in a viability score of 50%. 
+
+```{r}
+getIC50Value <- function( fit ){
+    if( !fit$converged ){
+      return( NA )
+    }
+    predictValues( fit, numPred=10000 ) %>% 
+    { .$concentration[which.min( abs( .$viability - 50) )] }
+}
+
+10^getIC50Value( lrCCLE1 )
+10^getIC50Value( lrGDSC1 )
+filter( summarizedData, drug=="17-AAG", cellLine=="H4")[,c("ic50_CCLE", "ic50_GDSC")]
+
+10^getIC50Value( lrCCLE2 )
+10^getIC50Value( lrGDSC2 )
+filter( summarizedData, drug=="Nilotinib", cellLine=="22RV1")[,c("ic50_CCLE", "ic50_GDSC")]
+```
+
+Let's now calculate AUC values based on the logistic regression model.
+
+```{r}
+getAUCValue <- function( fit ){
+    numbOfPredictions <- 10000
+    if( !fit$converged ){
+      return( NA )
+    }
+    ## difference between 1 and the predicted viability probability
+    x <- 1 - ( predictValues( fit, numPred=numbOfPredictions )$viability / 100 ) 
+    x <- sum( x ) ## summing all the predicted values
+    x / numbOfPredictions ## normalize such that the total area sums to 1
+}
+
+getAUCValue( lrCCLE1 )
+getAUCValue( lrGDSC1 )
+filter( summarizedData, drug=="17-AAG", cellLine=="H4")
+
+getAUCValue( lrCCLE2 )
+getAUCValue( lrGDSC2 )
+filter( summarizedData, drug=="Nilotinib", cellLine=="22RV1")
+```
+
+### Recomputing Values
+
+The following code, fits a logistic regression model for each of the drug and cell line combinations and estimates both IC50 and AUC values for both the CCLE and the GDSC data. This can take some time to run and the values are stored for further analysis in **Tutorial 2b**.
+
+```{r}
+mySummarizedDataFile <- file.path("..", "data", "modelSummarizedPharmacoData.rds")
+
+if (file.exists(mySummarizedDataFile)) {
+    mySummarizedData <- readRDS(mySummarizedDataFile)
+} else {
+    mySummarizedData <- suppressWarnings( lapply( seq_len( nrow( summarizedData )), function(x){
+        drug <- as.character( summarizedData$drug[x] )
+        cellLine <- as.character( summarizedData$cellLine[x] )
+        fitCCLE <- try( fitLogisticModel( drug, cellLine, "CCLE" ), silent=TRUE)
+        fitGDSC <- try( fitLogisticModel( drug, cellLine, "GDSC" ), silent=TRUE)
+        if( inherits(fitCCLE, "try-error") ){
+            ic50CCLE <- NA
+            aucCCLE <- NA
+        }else{
+            ic50CCLE <- 10^getIC50Value( fitCCLE )
+            aucCCLE <- getAUCValue( fitCCLE )
+        }
+        if( inherits(fitGDSC, "try-error") ){
+            ic50GDSC <- NA
+            aucGDSC <- NA
+        }else{
+            ic50GDSC <- 10^getIC50Value( fitGDSC )
+            aucGDSC <- getAUCValue( fitGDSC )
+        }
+        data.frame( drug=drug, 
+                   cellLine=cellLine, 
+                   ic50_CCLE=ic50CCLE, 
+                   auc_CCLE=aucCCLE,
+                   ic50_GDSC=ic50GDSC,
+                   auc_GDSC=aucGDSC )
+    }))
+    mySummarizedData <- do.call(rbind, mySummarizedData)
+    saveRDS(mySummarizedData, file = mySummarizedDataFile)
+}
+```
+
+## Linear Regression
+
+The function defined below, instead of fitting a logistic regression like the
+function `fitLogisticModel`, fits a linear regression. 
+
+```{r}
+fitLinearModel <- function(drugA, cellLineA, studyA) {
+    pharSub <- filter( pharmacoData, drug==drugA, cellLine==cellLineA, study==studyA)
+    pharSub$concentration <- log10( pharSub$concentration )
+    fit <- lm( viability~ concentration, pharSub )
+    fit
+}
+```
+
+Below you will find an example on how to use the `fitLinearModel` function and how to extract
+the slope of the linear regression.
+
+```{r}
+linearModelCCLE1 <- fitLinearModel( "17-AAG", "H4", "CCLE" )
+slope1 <- coefficients( linearModelCCLE1 )["concentration"]
+linearModelGDSC1 <- fitLinearModel( "17-AAG", "H4", "GDSC" )
+slope2 <- coefficients( linearModelGDSC1 )["concentration"]
+
+linearModelCCLE2 <- fitLinearModel( "Nilotinib", "22RV1", "CCLE" )
+coefficients( linearModelCCLE2 )["concentration"]
+linearModelGDSC2 <- fitLinearModel( "Nilotinib", "22RV1", "GDSC" )
+coefficients( linearModelGDSC2 )["concentration"]
+```

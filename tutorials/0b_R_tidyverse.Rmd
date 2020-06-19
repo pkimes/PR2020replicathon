@@ -1,0 +1,310 @@
+---
+title: "Tutorial 0b: Introduction to the Tidyverse"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+## Introduction
+
+### Caveat
+
+Before getting started, we would like to point out that learning these packages is not necessary for performing data analysis in R. The R language has existed for 25 years, and while popular, the _tidyverse_ is a relatively new addition to the R ecosystem of packages. Many statisticians, data scientists and other scientists are happy (and highly skilled!) performing data analysis in R without using the _tidyverse_ packages. Most tasks that can be accomplished using packages in the _tidyverse_ can be similarly completed using base R. However, in many cases (in particular, data manipulation), it can be much easier with the tools in the _tidyverse_. For this and many other reasons (including excellent online documentation and a large user community), we hope that you'll give the _tidyverse_ a try! 
+
+### Scope
+
+If you're still interested and reading, **great!**
+
+This tutorial will go over some basics about programming in R using packages in the [_tidyverse_](https://www.tidyverse.org/). The [_tidyverse_](https://www.tidyverse.org/) is a family of related R packages developed to streamline data science in R. If you've ever used the `ggplot2` package to create plots, you've already experienced part of the _tidyverse_! The [core _tidyverse_ packages](https://www.tidyverse.org/packages/) include `ggplot2`, `dplyr`, `tidyr`, `readr`, `purrr`, `tibble`, `stringr`, and `forcats`.
+
+Phew! That's a lot of packages!
+
+Unforunately, we don't have time to cover all of them. Instead, we'll give a light introduction to a couple of the packages that will be helpful for working with large datasets:
+
+- [`dplyr`](https://dplyr.tidyverse.org/) : for data manipulation,
+- [`tidyr`](https://tidyr.tidyverse.org/) : for "tidy"ing data.
+
+We will assume that you've had some exposure to the powerful plotting capabilities of the `ggplot2` package through other resources.
+
+## Installing the Tidyverse
+
+To get started, we will need to install the _tidyverse_ family of packages. 
+
+```{r install-tidyverse, eval = FALSE}
+install.packages("tidyverse")
+```
+
+If the packages are installed without any errors, we can load them as usual.
+
+```{r load-tidyverse}
+library(tidyverse)
+```
+
+Notice that the core tidyverse packages are listed under `Attaching packages` and loaded all at once. How wonderful!
+
+To demonstrate the basic usage of these packages, we also import the raw and summarized pharmacological datasets that we'll be analyzing today.
+
+```{r readRaw}
+pharmacoData <- readRDS(file.path("..", "data", "rawPharmacoData.rds"))
+str(pharmacoData)
+```
+
+```{r readSummarized}
+summarizedData <- readRDS(file.path("..", "data", "summarizedPharmacoData.rds"))
+str(summarizedData)
+```
+
+## The Pipe `%>%`
+
+The ["pipe" symbol (`%>%`)](https://magrittr.tidyverse.org/reference/pipe.html) is a commonly used feature of the _tidyverse_. It was originally defined in the ([cleverly named](https://en.wikipedia.org/wiki/The_Treachery_of_Images)) [`magrittr`](https://magrittr.tidyverse.org/index.html) package, but is also included in the `dplyr` _tidyverse_ package. The `%>%` symbol can seem confusing and intimidating at first. However, once you understand the basic idea, it can become addicting!
+
+The `%>%` symbol is placed between a value on the left and a function on the right. The `%>%` simply takes the value to the left and passes it to the function on the right as the first argument. It acts as a "pipe". That's it!
+
+Suppose we have a variable, `x`.
+
+```{r}
+x <- 9
+```
+
+The following are *the exact same*.
+
+```{r}
+sqrt(x)
+x %>% sqrt()
+```
+
+As a slightly more complex example, the following calls to `ggplot` are also equivalent.
+
+```{r}
+gp1 <- pharmacoData %>%
+    ggplot(aes(x = concentration, y = viability))
+
+gp2 <- ggplot(pharmacoData,
+              aes(x = concentration, y = viability))
+```
+
+That's it! We'll continue to use `%>%` throughout this tutorial to show how useful it can be for chaining various data manipulation steps during an analysis.
+
+## The `dplyr` Package
+
+Most of this tutorial will be spent describing several functions in the `dplyr` package for working with tabular data. Remember, the best way to get a feel for these functions is to use them to answer questions about your data. We have included several examples for using these `dplyr` functions with the `pharmacoData` dataset.
+
+There are many more functions in the `dplyr` package that we won't have time to cover here. More details on all of the useful functions defined in the package can be found on the [`dplyr` reference page](https://dplyr.tidyverse.org/reference/index.html).
+
+### Subsetting
+
+First, let's take a look at subsetting the data. To subset *rows* in a table based on values in a column, use the `filter` function.
+
+The following examples filter the data on a single drug and a singe cell line, respectively.
+
+```{r}
+nilotinibData <- filter(pharmacoData, drug == "Nilotinib")
+head(nilotinibData)
+
+cl639vData <- filter(pharmacoData, cellLine == "639-V")
+head(cl639vData)
+```
+
+We can also combine multiple filters.
+
+```{r}
+n6Data <- filter(pharmacoData,
+                 drug == "Nilotinib",
+                 cellLine == "639-V")
+head(n6Data)
+```
+
+The `distinct` function is a quick way to just take the unique rows in a table. The function can be called with zero or more columns specified. If any columns are specified, only unique rows for those columns will be returned.
+
+The following returns the unique cell line and drug combinations in our data.
+
+```{r}
+cldData <- distinct(pharmacoData, cellLine, drug)
+head(cldData)
+dim(cldData)
+```
+
+To subset *columns*, use the `select` function. The following example returns a smaller table with just the `cellLine` and `drug` columns.
+
+```{r}
+subdat <- select(pharmacoData, cellLine, drug)
+head(subdat)
+```
+
+### Modifying
+
+Now that we know how to subset columns, what about **adding** columns? This can be done with the `mutate` function. Suppose instead of concentrations, we want to look at the data with *log2* concentrations. We can add a new column to the table with the following call. 
+
+```{r}
+pharmacoData %>%
+    dplyr::mutate(logConcentration = log2(concentration)) %>%
+    head()
+```
+
+Simple enough! Notice that the new column is added as "`logConcentration`", as specified in the call to `mutate`. What would have happened if we had set the new column to "`concetration`" (the name of an existing column)? Give it a try!
+
+Remember, if you want to keep the new columns, you'll have to assign the modified table to a variable.
+
+```{r}
+pharmacoData <- pharmacoData %>%
+    dplyr::mutate(logConcentration = log2(concentration))
+pharmacoData
+```
+
+### Summarizing
+
+Another useful set of functions in the `dplyr` package allow for aggregating across the rows of a table. Suppose we want to compute some summary measures of the viability scores.
+
+```{r}
+pharmacoData %>%
+    summarize(minViability = min(viability),
+              maxViability = max(viability),
+              avgViability = mean(viability))
+```
+
+Great!
+
+For the simple case of counting the occurrences of the unique values in a column, use `count`. The following example counts the number of rows in the table corresponding to each study.
+
+```{r}
+count(pharmacoData, study)
+```
+
+Interesting! It looks like we have slightly more data from the GDSC study.
+
+### Grouping
+
+Summarization of the entire table is great, but often we want to summarize by **groups**. For example, instead of just computing the minimum, maximum and average viability across *all* viability measures, what about computing these values for the CCLE and GDSC studies separately?
+
+To do this, `dplyr` includes the `group_by` function. All we have to do is "group" by `study` before calling `summarize` as we did above. 
+
+```{r}
+pharmacoData %>%
+    group_by(study) %>%
+    summarize(minViability = min(viability),
+              maxViability = max(viability),
+              avgViability = mean(viability))
+```
+
+Amazing, right?
+
+**Tip:** Always remember to `upgroup` your data after you're finished performing operations on the groups. Forgetting that your data is still "grouped" can cause major headaches while performing data analysis! If you're not sure if the data is grouped, just `ungroup`! (There's no harm in calling `ungroup` too often.)
+
+```{r}
+pharmacoData %>%
+    group_by(cellLine, drug, study) %>%
+    mutate(viability = viability / max(viability) * 100) %>%
+    ungroup()
+```
+
+Can you figure out what we're doing in the code above?
+
+### Joining
+
+Finally, the `dplyr` package includes [several functions](https://dplyr.tidyverse.org/reference/join.html) for combining multiple tables. These functions are incredibly useful for combining multiple tables with partially overlapping data. For example, what if we want to combine the raw and summarized pharmacological datasets?
+
+Notice that both datasets include columns with `cellLine` and `drug` information. 
+
+```{r, warning = FALSE}
+head(pharmacoData)
+head(summarizedData)
+```
+
+We will use the `full_join` function to combine these two tables and specify that this should be done by matching the `cellLine` and `drug` columns.
+
+```{r}
+fullData <- full_join(pharmacoData, summarizedData, by = c("cellLine", "drug"))
+head(fullData)
+```
+
+Notice that we now have a single table with the columns from both tables. There are several other functions for merging tables, including `left_join`, `inner_join`, and `anti_join`. To learn more about how these differ, take a look at the [documentation page](https://dplyr.tidyverse.org/reference/join.html).
+
+## The `tidyr` Package
+
+While the `dplyr` package includes many functions for manipulating data, we would have a hard time using these tools if our data is not in the correct "form". For example, what if we want to compare the viability scores in `pharmacoData` for two drugs in the CCLE study? To do this, we would want the two drugs to be in separate columns, so that we can compare them side-by-side. No amount of subsetting or mutating the table will get us there. We need to fundamentally *transform the shape* of our data. 
+
+This is where the `tidyr` package comes in. The `tidyr` package includes several functions to help with arranging and rearranging our data. We will highlight the two most important functions for this task:
+
+- `spread`: to **spread** values in a single column to multiple columns,
+- `gather`: to **gather** values in multiple columns to a single column.
+
+Again, there are many more functions in the `tidyr` package that we won't have time to cover here. More details can be found on the [`tidyr` reference page](https://tidyr.tidyverse.org/reference/index.html).
+
+Don't worry if it takes some time for these ideas to start making sense! At first, transforming data with `tidyr` can feel like mental yoga.
+
+### Spreading
+
+To demonstrate `spread`ing data, let's consider the example described above. Suppose we would like to compare the viability scores for two drugs in the CCLE study, `lapatinib` and `paclitaxel`, across cell lines and concentrations.
+
+First, using the `dplyr` functions from above, we'll subset the data.
+
+```{r}
+subdat <- pharmacoData %>%
+    filter(study == "CCLE",
+           drug %in% c("lapatinib", "paclitaxel")) %>%
+    select(cellLine, drug, concentration, viability)
+head(subdat)
+```
+
+Next, we will use the `spread` function to take the viability scores for the two drugs into separate columns. How do we do this? We would like to take the values in the `drug` column and turn these into our new columns. We then want to populate these columns with values from the `viability` column. To do this, we simply specify `drug` as the "key" and `viability` as the "value" to the `spread function.
+
+```{r}
+subdat_wide <- spread(subdat, key = drug, value = viability)
+head(subdat_wide)
+```
+
+Great! Notice that the data in the other columns (`cellLine` and `concentration`) are still there. When populating the `lapatinib` and `paclitaxel` columns, the `spread` function will make sure to keep track of the remaining columns. 
+
+### Gathering
+
+Next, let's use the `summarizedData` to demonstrate how `gather` works.
+
+```{r}
+head(summarizedData)
+```
+
+Suppose we now want to organize all of the IC50 and AUC values stored in the separate `ic50_CCLE`, `auc_CCLE`, `ic50_GDSC` and `auc_GDSC` columns into a single column of "metric values". Essentially, we would like to reverse the "spreading" procedure that we carried out above. To do this, we simply call `gather` with what we want our "key" and "value" columns to be named. 
+
+```{r}
+summarizedDataLong <- gather(summarizedData, metric, value)
+head(summarizedDataLong)
+```
+
+Oh no! Something went wrong here. Remember, we only want to "gather" the four columns with the IC50 and AUC values. Here, we've gathered **all** of the columns (including the `cellLine` and `drug` columns). 
+
+To specify that we only want to gather the four columns, we pass these column names to `gather`.
+
+```{r}
+summarizedDataLong <- gather(summarizedData, key = metric, value = value,
+                             ic50_CCLE, auc_CCLE, ic50_GDSC, auc_GDSC)
+head(summarizedDataLong)
+```
+
+Alternatively, since the number of columns we would like to exclude is smaller, we can specify these columns with the a "minus".
+
+```{r}
+## alternatively
+summarizedDataLong <- gather(summarizedData, key = metric, value = value,
+                             -cellLine, -drug)
+head(summarizedDataLong)
+```
+
+The result is the same!
+
+Now, we have a new "key" column (`metric`) with the names of the columns that were gathered and a new "value" column (`value`) with the original entries of those columns.
+
+The `gather` and `spread` functions are opposites. Therefore, we can undo the `gather` operation above by calling `spread`.
+
+```{r}
+summarizedDataUndo <- spread(summarizedDataLong, key = metric, value = value)
+head(summarizedDataUndo)
+```
+
+We are back to our original dataset!
+
+## References
+
+For a complete book on how to do data science using R and the _tidyverse_, we highly recommend **R for Data Science**, [available for free online](https://r4ds.had.co.nz/), by Garrett Grolemund and Hadley Wickham.
+
+More practically, the [accompanying websites for the tidyverse packages](https://www.tidyverse.org/) are absolutely amazing. These sites are a great resource for trying to understand how these packages work. Also, when in doubt [ask](https://www.google.com/) [the](https://www.bing.com/) [internet](https://duckduckgo.com/).

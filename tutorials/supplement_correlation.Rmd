@@ -1,0 +1,173 @@
+---
+title: "Supplement: Correlation Measures"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+One way to quantify the degree of agreement of two variables, such as drug response in the CCLE and GDSC studies, is to calculate the *correlation* between the pair. Correlation is commonly quantified as a value between -1 and 1, and measures the degree of association between the two variables. The higher the correlation value, the stronger the association. If two variables are exactly the same, then correlation is equal to 1. If two variables are unrelated, then correlation will be close to 0. What would a negative correlation mean?
+
+> Place your answer here
+
+When interpreting a correlation value, we consider how close the value is to 1 (or -1). There are no exact rules on calling a correlation "weak" or "strong", and varies across scientific fields and applications. For the purposes of our analysis, we'll consider values above 0.7 in magnitude as strong and below 0.3 as weak. 
+
+Note that there are several different types of correlations. For example, we might say that two variables are in agreement if they fall along a straight line when plotted against each other. Or, we might say they two are in agreement if an increase in one tends to be associated with an increase in the other (but not necessarily along a straight line). We'll start by examining two different types for continuous variables:
+
+1. **Pearson's** correlation coefficient: measures the degree of *linear* between variables,
+
+2. **Spearman's** correlation coefficient: measures the agreement of the *rankings* between variables.
+
+We'll also briefly introduce a third measure of correlation:
+
+3. **Matthews'** correlation coefficient: measures the degree of agreement between *categorical* variables.
+
+## Setup Workspace
+
+We start by loading the tidyverse family of packages and specifying a default plotting theme for our `ggplot` graphics.
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+## Pearson Correlation
+
+Here are some example scatterplots and their resulting correlation coefficients using the Pearson measure of linear association.
+
+```{r, pearson-ex}
+# set seed for reproducibility
+set.seed(738)
+
+# Perfect correlation
+x <- rnorm(50)
+perfect <- data.frame(x=x, y=x)
+cor.coef <- round(cor(perfect$x, perfect$y),2)
+ggplot(data=perfect, aes(x=x,y=y)) +
+  geom_point() +
+  ggtitle(paste0("Correlation coefficient = ", cor.coef)) + 
+  geom_smooth(method='lm', se=FALSE)
+
+# Strong correlation
+x <- rnorm(50,0,2)
+strong <- data.frame(x=x, y=x+rnorm(50,0,0.75))
+cor.coef <- round(cor(strong$x, strong$y),2)
+ggplot(data=strong, aes(x=x,y=y)) +
+  geom_point() +
+  ggtitle(paste0("Correlation coefficient = ", cor.coef))+ 
+  geom_smooth(method='lm', se=FALSE)
+
+# Moderate correlation
+x <- rnorm(50,0,2)
+moderate <- data.frame(x=x, y=x+rnorm(50,0,2.5))
+cor.coef <- round(cor(moderate$x, moderate$y),2)
+ggplot(data=moderate, aes(x=x,y=y)) +
+  geom_point() +
+  ggtitle(paste0("Correlation coefficient = ", cor.coef))+ 
+  geom_smooth(method='lm', se=FALSE)
+
+# Weak correlation
+x <- rnorm(50,0,1)
+weak <- data.frame(x=x, y=x+rnorm(50,0,4))
+cor.coef <- round(cor(weak$x, weak$y),2)
+ggplot(data=weak, aes(x=x,y=y)) +
+  geom_point() +
+  ggtitle(paste0("Correlation coefficient = ", cor.coef))+ 
+  geom_smooth(method='lm', se=FALSE)
+
+# No correlation
+x <- rnorm(50,0,2)
+none <- data.frame(x=x, y=rnorm(50),0,2)
+cor.coef <- round(cor(none$x, none$y),2)
+ggplot(data=none, aes(x=x,y=y)) +
+  geom_point() +
+  ggtitle(paste0("Correlation coefficient = ", cor.coef))+ 
+  geom_smooth(method='lm', se=FALSE)
+```
+
+## Spearman Correlation
+
+As noted above, in contrast to Pearson's measure of linear correlation, Spearman correlation is based on comparing the **ranking** of observations across two datasets. To understand the difference, here is an example where the two correlation measures are similar, and an example where they differ substantially.
+
+```{r, spearman-vs-pearson}
+# Same
+x <- rnorm(50,0,1)
+corrcomp <- data.frame(x=x, y=x+rnorm(50,0,1))
+cor.pearson <- round(cor(corrcomp$x, corrcomp$y, method="pearson"),2)
+cor.spearman <- round(cor(corrcomp$x, corrcomp$y, method="spearman"),2)
+ggplot(data=corrcomp, aes(x=x,y=y)) +
+  geom_point() +
+  ggtitle(paste0("Pearson = ", cor.pearson, ", Spearman = ", cor.spearman))+ 
+  geom_smooth(method='lm', se=FALSE)
+
+# Different
+x <- rnorm(50,0,2)
+corrcomp <- data.frame(x=x, y=exp(x))
+cor.pearson <- round(cor(corrcomp$x, corrcomp$y, method="pearson"),2)
+cor.spearman <- round(cor(corrcomp$x, corrcomp$y, method="spearman"),2)
+ggplot(data=corrcomp, aes(x=x,y=y)) +
+    geom_point() +
+    ggtitle(paste0("Pearson = ", cor.pearson, ", Spearman = ", cor.spearman))
+```
+
+In the previous example, why is the Spearman correlation so high, while the Pearson correlation is only moderate?
+
+> Place your answer here
+
+## Matthews Correlation
+
+While both Pearson and Spearman are useful correlation measures for continuous variables, they can't be used to measure agreement between categorial variables. In **Tutorial 2a**, we will be classifying cell lines as either "sensitive" or "resistant" to a drug based on the GDSC and CCLE data. How can we determine whether the classifications of the cell lines are similar or different between the studies? 
+
+One way to do this is using Matthews correlation. As with Pearson and Spearman correlation, Matthews correlation takes values between 1 and -1, and provides a nice summary of the agreement between two variables.
+
+Unfortunately, base R does not include a function for calculating the Matthews correlation coefficient (MCC). We will have to define a function ourselves to calculate the statistic. For simplicity, We will call it `mcc`. The `mcc` function takes two variables, each containing values of `"Sensitive"` or `"Resistant"` (the cell line classifications, and returns the computed MCC. 
+
+```{r, matthews}
+mcc <- function (study1, study2) {
+    BS <- sum(study1 == "Sensitive" & study2 == "Sensitive") 
+    BR <- sum(study1 == "Resistant" & study2 == "Resistant") 
+    SR <- sum(study1 == "Sensitive" & study2 == "Resistant") 
+    RS <- sum(study1 == "Resistant" & study2 == "Sensitive") 
+    
+    if (BS+SR == 0 | BS+RS == 0 | BR+SR == 0 |  BR+RS ==0){
+        mcc <- ((BS*BR)-(SR*RS)) 
+    }else{
+        mcc <- ((BS*BR)-(SR*RS)) / sqrt(exp((log(BS+SR)+log(BS+RS)+log(BR+SR)+log(BR+RS))))
+    }
+    return(mcc)
+}
+```
+
+Here are some example contingency tables and their resulting MCCs. First, an example of perfect agreement. 
+
+```{r matthews-agree}
+x1 <- c("Sensitive", "Sensitive", "Resistant", "Resistant")
+x2 <- c("Sensitive", "Sensitive", "Resistant", "Resistant")
+table(x1, x2)
+paste("MCC =", mcc(x1, x2))
+```
+
+Next, an example of perfect disagreement.
+
+```{r matthews-disagree}
+x1 <- c("Resistant", "Resistant", "Sensitive", "Sensitive")
+x2 <- c("Sensitive", "Sensitive", "Resistant", "Resistant")
+table(x1, x2)
+paste("MCC =", mcc(x1, x2))
+```
+
+Finally, an example of intermediate agreement.
+
+```{r matthews-intermediate}
+x1 <- c("Sensitive", "Sensitive", "Resistant", "Resistant", "Sensitive")
+x2 <- c("Sensitive", "Sensitive", "Resistant", "Resistant", "Resistant")
+table(x1, x2)
+paste("MCC =", mcc(x1, x2))
+```
+

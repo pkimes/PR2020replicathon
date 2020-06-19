@@ -1,0 +1,136 @@
+---
+title: "Supplement: Exploring High Dimensional Data with PCA and Clustering"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(tidyverse)
+```
+
+## Principal Components Analysis
+
+Principal Components Analysis (PCA) is often used for dimensionality reduction when dealing with high-dimensional data. Here, we will look at a subset of the drug sensitivity data, from 
+the GDSC study. Each cell line will be treated as an independent observation with multiple
+features corresponding to the AUC values for the interaction between the cell line and 
+each drug in the study.
+
+To start, let's load the data from the GDSC study and format it into a `data.frame` of AUC
+values.
+
+```{r}
+sumData <- readRDS(file.path("..", "data", "summarizedPharmacoData.rds"))
+auc_GDSC <- spread(sumData[,c(1,2,6)], drug, auc_GDSC)
+rownames(auc_GDSC) <- auc_GDSC$cellLine
+auc_GDSC$cellLine <- NULL
+auc_GDSC <- auc_GDSC[!is.na(rowSums(auc_GDSC)), ]
+head(auc_GDSC)
+```
+
+As we can see, we now have a `data.frame` of AUC values with rows corresponding to cell
+lines and columns corresponding to drugs.
+
+We are now ready to perform PCA, via the `prcomp` 
+function. This function computes all of the relevant information and returns it as 
+a `list`, which we will name `pca`. Note: this function expects the independent 
+observations to be in the *rows* of the input.
+
+```{r}
+pca <- prcomp(auc_GDSC)
+```
+
+Now that the calculation is done, we can start to visualize the results. A reasonable
+starting point is to plot the top 2 principal components (PCs) and see what
+structure (if any) we can observe in the data.
+
+```{r}
+plot(pca$x, asp = 1)
+```
+
+For a more detailed picture, we may want to look at a larger number of PCs. We can
+use the `pairs` function to plot larger numbers of dimensions against each other.
+
+```{r}
+pairs(pca$x[,1:5], asp = 1)
+```
+
+Another important consideration is the relative importance of the PCs. Calling the
+`plot` function directly on the output of `prcomp` produces a barplot of the variances
+of the PCs, which is one way of quantifying the amount of information they contain. 
+Notice that the height of the bars is strictly decreasing; this will always be the case
+for PCA.
+
+```{r}
+plot(pca)
+```
+
+Since the first PC seems to contain a fair amount of information, we may also be 
+interested in examining which of the drugs are most related to it. We can do this
+by plotting the loadings of each drug on PC-1, which are stored in the `rotation`
+matrix.
+
+```{r}
+barplot(pca$rotation[,1], las = 2)
+```
+
+
+## Clustering
+
+Another question we may be interested in answering is whether or not there are distinct
+groups of cell lines, perhaps based on cancer type or tissue of origin. With no 
+additional information on the cell lines, we can seek to discover such groups via
+clustering.
+
+### k-means
+
+Below, we apply k-means clustering to the same subset of the data as above.
+
+```{r}
+km <- kmeans(auc_GDSC, centers = 3)
+```
+
+And we visualize the resulting clusters on the top two PCs:
+
+```{r}
+plot(pca$x, asp = 1, col = km$cluster)
+```
+
+Alternatively, we could have applied our clustering algorithm to a reduced 
+representation of the data. Here, we will apply k-means to the top 3 PCs of the
+data and again visualize the results using the top 2 PCs.
+
+```{r}
+km2 <- kmeans(pca$x[,1:3], centers = 3)
+plot(pca$x, asp = 1, col = km2$cluster)
+```
+
+Why do these results differ from the clusters obtained on the full dataset?
+(Hint: look at the `pairs` plot).
+
+
+### Hierarchical clustering
+
+We will try one more clustering method, this time using the `hclust` function to
+perform hierarchical clustering.
+
+```{r}
+hc <- hclust(dist(auc_GDSC))
+lab <- cutree(hc, k = 3)
+
+plot(pca$x, asp = 1, col = lab)
+```
+
+As with k-means, we may also choose to cluster the low-dimensional representation
+of our data rather than the full dataset:
+
+```{r}
+hc <- hclust(dist(pca$x[,1:3]))
+lab <- cutree(hc, k = 3)
+
+plot(pca$x, asp = 1, col = lab)
+```
+
+

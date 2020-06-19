@@ -1,0 +1,219 @@
+---
+title: "Tutorial 1b: Exploring Replicability with the `summarizedPharmacoData` Dataset"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Hopefully you have had the chance to explore some of the features of the CCLE and GDSC drug response datasets. If not, it might be a good idea to check out **Tutorial 1a** ("Exploring Pharmacological Data with the `rawPharmacData` Dataset") to get a feel for the types of variables contained in the raw data. In contrast to the raw data which include the viability at each drug concentration for each cell line, the summarized dataset contains numerical summaries of each cell line's response to each drug over all concentrations. 
+
+In this tutorial we'll first learn more about summary measures of drug response, and then use scatterplots and correlation measures to assess the agreement of these summary measures in the two studies. 
+
+### Summary Measures
+
+In the summarized dataset, the cell line viability over all drug concentrations has been summarized into a single number for each cell line and drug combination. This summary represents the *overall effect of the drug on the cell line*. There are many different ways this could be done. Our data includes two summary measures that were used in the original studies: 
+
+1. **IC50 (Half Maximal Inhibitory Concentration)**: the estimated concentration of the drug that will result in half (50%) of the cells surviving. 
+
+![](../figures/IC50.jpg)
+
+Are cell lines with higher IC50 values more or less susceptible? What about drugs with higher IC50 values - are they more or less toxic?
+
+> Place your answer here
+
+2. **AUC (Area Under the Curve)**: despite the name, this is actually the area *above* the curve estimated by the drug concentration and viability data. Note that the estimation of this curve is not a simple task in itself - check out the tutorial on summarizing the relationship between two variables to learn more (**Tutorial 2b**). 
+
+![](../figures/AUC.jpg)
+
+Are cell lines with higher values of AUC more or less resistant?
+
+> Place your answer here
+
+Are drugs with higher AUC more or less toxic?
+
+> Place your answer here
+
+## Setup Workspace
+
+We start by loading the tidyverse family of packages and specifying a default plotting theme for our `ggplot` graphics.
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+## Load Summarized Dataset
+
+Let's start by loading the `RDS` file containing the summarized pharmacological data (including the IC50 and AUC values for each drug and cell line combination, as described above). 
+
+```{r read-rds}
+summarizedData <- readRDS(file.path("..", "data", "summarizedPharmacoData.rds"))
+```
+
+As we did with the raw data, we'll take a quick peek at this data before getting started.
+
+```{r peek-data}
+str(summarizedData)
+```
+
+We can count the number of cell lines and drugs in the data.
+
+```{r count-uniq}
+## with base R
+length(unique(summarizedData$cellLine))
+length(unique(summarizedData$drug))
+
+## with the tidyverse
+summarizedData %>%
+    summarize(nCellLines = n_distinct(cellLine),
+              nDrugs     = n_distinct(drug))
+```
+
+Notice that there are `r nrow(summarizedData)` rows - each row here corresponds to a cell line-drug combination. 
+Making up these combinations are 288 unique cell lines, and 15 drugs. 
+
+Was every cell line in the dataset tested with every drug?
+
+> Place your answer here
+
+## Comparing Studies using Plots
+
+So we now have summary measures (IC50 and AUC) that indicate the responses of cell lines to drugs. However, each study measured these values separately. The goal of our analysis is to **investigate how well these two studies agree with each other**. In other words, do the drug response results in one study **replicate** in the other study? 
+
+### AZD0530
+
+First, we'll examine this question for one of the drugs in particular: **AZD0530**. To make our code easier to read, let's create a separate object from for this subset of the data and call it `azdSummary`.
+
+```{r one-drug-subset}
+azdSummary <- subset(summarizedData, drug == "AZD0530")
+```
+
+We'll start out by visually exploring how the AUC values for AZD0530 compare in the two datasets using a scatterplot.
+
+```{r AUC-one-drug, fig.width = 5, fig.height = 5}
+ggplot(azdSummary, aes(x = auc_GDSC, y = auc_CCLE)) +
+    geom_point(alpha = 1/2) +
+    xlab("GDSC AUC") +
+    ylab("CCLE AUC") +
+    ggtitle("AUC summaries of cell line response to AZD0530 across studies")
+```
+
+Perfect agreement between the GDSC and CCLE AUC values would mean all the points falling on a straight line. How would you describe the level of agreement between the AUC values for cell line response to AZD0530 in the CCLE and GDSC studies? Does it seem like higher values of AUC in the GDSC study correspond to higher values in the CCLE study?
+
+> Place your answer here
+
+Next, let's look at the same type of scatterplot for the IC50 values. 
+
+```{r ic50-one-drug, fig.width = 5, fig.height = 5}
+ggplot(azdSummary, aes(x = ic50_GDSC, y = ic50_CCLE)) +
+    geom_point(alpha = 1/2) +
+    xlab("GDSC IC50") +
+    ylab("CCLE IC50") +
+    ggtitle("IC50 summaries of cell line response to AZD0530 across studies")
+```
+
+What is different about this plot compared to the AUC plot above? 
+
+> Place your answer here
+
+First, you may notice that there are many points with the highest value of IC50 for CCLE. Recall from **Tutorial 1a** that this study measured a fixed set of doses, regardless of how the cells responded, whereas in the GDSC drug concentrations were increased if no response was observed. What does this mean for the IC50 values in the CCLE? Are they more likely to be too high or too low? Why?
+
+> Place your answer here
+
+If you haven't already, take a closer look at the axes. Another thing to notice is that there is a much larger range of IC50 values reported in the GDSC study, but most values are small. This indicates a *skewed* distribution that may benefit from a log-transformation. Next, we'll plot log10-transformed values of IC50. We'll also plot *negative* values, so that increasing values of IC50 represent higher levels of drug toxicity (to make the plot more comparable to the AUC plot above).
+
+```{r ic50-one-drug-log}
+ggplot(azdSummary, aes(x = -log10(ic50_GDSC), y = -log(ic50_CCLE))) +
+    geom_point(alpha = 1/2) +
+    xlab("-log10(GDSC IC50)") +
+    ylab("-log10(CCLE IC50)") +
+    ggtitle("IC50 summaries of cell line response to AZD0530 across studies")
+```
+
+How would you describe the level of agreement between the IC50 values of cell line response to AZD0530 in the CCLE and GDSC studies? Does it seem like higher values of AUC in the GDSC correspond to higher values in the CCLE?
+
+> Place your answer here
+
+### All Drugs
+
+So far, we have only looked at how well the two studies agree for the response measurements of a single drug. However, we need to look at the rest of the drugs to fully assess the level of replication. First, we set out to reproduce Figure 2 in the Haibe-Kains paper, which displays scatter plots of IC50 values for the 15 drugs that were probed in both the CCLE and GDSC. Essentially, we are going to make the plots from the previous section for all 15 drugs at once and compare them side-by-side.
+
+```{r ic50-all-drug-log, fig.width = 10, fig.height = 9}
+summarizedData %>%
+    ggplot(aes(x = -log10(ic50_GDSC), y = -log10(ic50_CCLE))) +
+    geom_point(alpha = 1/2, cex = 1/2) + 
+    facet_wrap(~ drug) +
+    xlab("-log10(GDSC IC50)") +
+    ylab("-log10(CCLE IC50)") +
+    ggtitle("IC50 summaries of cell line response across studies")
+```
+
+Why do the ranges of the axes not exactly match the axes in Figure 2 of the published paper? Note that the concentrations reported in the `summarizedData` dataset are given in units of mili-molar. However, the plots contain values calculated on the nano-molar scale (1 million times smaller). Thus, we can reproduce the original plot's axis labels by scaling the concentration values by 10^6.
+
+```{r ic50-all-drug-scaled, fig.width = 10, fig.height = 9}
+summarizedData %>%
+    ggplot(aes(x = -log10(ic50_GDSC / 10^6),
+               y = -log10(ic50_CCLE / 10^6))) +
+    geom_point(cex = 1/2) + 
+    facet_wrap(~ drug) +
+    xlab("-log10(GDSC IC50/10^6)") +
+    ylab("-log10(CCLE IC50/10^6)") +
+    ggtitle("IC50 summaries of cell line response across studies")
+```
+
+Compare this plot to Figure 2 in the Haibe-Kains reanalysis paper. Does it seem to agree?
+
+> Place your answer here
+
+Looking at the IC50 values for both studies across all 15 drugs, would you say that they tend to agree? Why or why not?
+
+> Place your answer here
+
+## Comparing Studies using Correlations
+
+We have visually inspected the agreement of the drug response data between the two studies. Now, we'd like to go a step further and **quantify** the agreement with statistics. We'll do this using measures of correlation.
+
+> If you aren't familiar with common measures of correlation (namely, Pearson and Spearman), don't worry! Before moving on, check out the Supplementary Tutorial, **Supplement: Correlation Measures**, for a quick introduction!
+
+Now we'll summarize different measures of correlation of the IC50 values to assess the level of 
+replication between these two experiments. First, we'll compute the two different measures for correlating 
+continous variables mentioned above (Pearson and Spearman correlation coefficients).
+
+```{r ic50-correlation}
+## with the tidyverse
+drugCorrs <- summarizedData %>% 
+    group_by(drug) %>%
+    summarize(Pearson_ic50  = cor(-log10(ic50_GDSC / 10^6), -log10(ic50_CCLE / 10^6), method = "pearson"),
+              Spearman_ic50 = cor(-log10(ic50_GDSC / 10^6), -log10(ic50_CCLE / 10^6), method = "spearman"))
+
+drugCorrs
+```
+
+Next, we'll visualize the correlations the IC50 measurements in a grouped bar plot.
+To do this, we'll first have the reshape the data using the `gather` function from the tidyverse.
+
+```{r tidy-ic50-correlation}
+## with the tidyverse
+drugCorrs <- gather(drugCorrs, measure, correlation, -drug)
+
+drugCorrs
+```
+
+With this "tidy" data, we can now plot the two correlation measures across cell ines for each drug.
+
+```{r barplot-correlations-ic50, fig.width = 8, fig.height = 4}
+drugCorrs %>%
+    ggplot(aes(x = drug, y = correlation, fill = measure, group = measure)) +
+    geom_bar(stat = "identity", position = position_dodge(), colour = "black") + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_fill_grey() +
+    ylim(0, 1) + 
+    ggtitle("Correlation of cell line IC50 summaries between studies for each drug")
+```

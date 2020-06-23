@@ -149,7 +149,7 @@ Remember, if you want to keep the new columns, you'll have to assign the modifie
 ```{r}
 pharmacoData <- pharmacoData %>%
     dplyr::mutate(logConcentration = log2(concentration))
-pharmacoData
+head(pharmacoData)
 ```
 
 ### Summarizing
@@ -224,18 +224,18 @@ Notice that we now have a single table with the columns from both tables. There 
 
 While the `dplyr` package includes many functions for manipulating data, we would have a hard time using these tools if our data is not in the correct "form". For example, what if we want to compare the viability scores in `pharmacoData` for two drugs in the CCLE study? To do this, we would want the two drugs to be in separate columns, so that we can compare them side-by-side. No amount of subsetting or mutating the table will get us there. We need to fundamentally *transform the shape* of our data. 
 
-This is where the `tidyr` package comes in. The `tidyr` package includes several functions to help with arranging and rearranging our data. We will highlight the two most important functions for this task:
+This is where the `tidyr` package comes in. The `tidyr` package includes several functions to help with arranging and rearranging our data. We will highlight the two most important functionxs for this task:
 
-- `spread`: to **spread** values in a single column to multiple columns,
-- `gather`: to **gather** values in multiple columns to a single column.
+- `pivot_wider`: to spread values in a single column to multiple columns, making the table **wider**,
+- `pivot_longer`: to gather values in multiple columns to a single column, making the table **longer**.
 
 Again, there are many more functions in the `tidyr` package that we won't have time to cover here. More details can be found on the [`tidyr` reference page](https://tidyr.tidyverse.org/reference/index.html).
 
 Don't worry if it takes some time for these ideas to start making sense! At first, transforming data with `tidyr` can feel like mental yoga.
 
-### Spreading
+### Pivoting Wider
 
-To demonstrate `spread`ing data, let's consider the example described above. Suppose we would like to compare the viability scores for two drugs in the CCLE study, `lapatinib` and `paclitaxel`, across cell lines and concentrations.
+To demonstrate what it means to take a data set and `pivot_wider`, let's consider the example described above. Suppose we would like to compare the viability scores for two drugs in the CCLE study, `lapatinib` and `paclitaxel`, across cell lines and concentrations.
 
 First, using the `dplyr` functions from above, we'll subset the data.
 
@@ -247,57 +247,56 @@ subdat <- pharmacoData %>%
 head(subdat)
 ```
 
-Next, we will use the `spread` function to take the viability scores for the two drugs into separate columns. How do we do this? We would like to take the values in the `drug` column and turn these into our new columns. We then want to populate these columns with values from the `viability` column. To do this, we simply specify `drug` as the "key" and `viability` as the "value" to the `spread function.
+Next, we will use the `pivot_wider` function to take the viability scores for the two drugs into separate columns. How do we do this? We would like to take the values in the `drug` column and turn these into our new columns. We then want to fill these columns with values from the `viability` column. To do this, we simply specify `drug` as the "`names_from=`" and `viability` as the "`values_from=`" parameters to the `pivot_wider` function.
 
 ```{r}
-subdat_wide <- spread(subdat, key = drug, value = viability)
+subdat_wide <- pivot_wider(subdat,
+                           names_from = drug,
+                           values_from = viability)
 head(subdat_wide)
 ```
 
-Great! Notice that the data in the other columns (`cellLine` and `concentration`) are still there. When populating the `lapatinib` and `paclitaxel` columns, the `spread` function will make sure to keep track of the remaining columns. 
+Great! Notice that the data in the other columns (`cellLine` and `concentration`) are still there. When populating the `lapatinib` and `paclitaxel` columns, the `pivot_wider` function will make sure to keep track of the remaining columns. 
 
-### Gathering
+### Pivoting Longer
 
-Next, let's use the `summarizedData` to demonstrate how `gather` works.
+Next, let's use the `summarizedData` to demonstrate how `pivot_longer` works.
 
 ```{r}
 head(summarizedData)
 ```
 
-Suppose we now want to organize all of the IC50 and AUC values stored in the separate `ic50_CCLE`, `auc_CCLE`, `ic50_GDSC` and `auc_GDSC` columns into a single column of "metric values". Essentially, we would like to reverse the "spreading" procedure that we carried out above. To do this, we simply call `gather` with what we want our "key" and "value" columns to be named. 
+Suppose we now want to organize all of the IC50 and AUC values stored in the separate `ic50_CCLE`, `auc_CCLE`, `ic50_GDSC` and `auc_GDSC` columns into a single column of "metric values". Essentially, we would like to reverse the "widening" procedure that we carried out above (turn a short wide table into a long skinny table). To do this, we call `pivot_longer`, specifying the columns we want to bring together (here, `ic50_CCLE`, `auc_CCLE`, `ic50_GDSC` and `auc_GDSC`), along with new column names for the two columns that will contain the former column names and the values (we'll just call these `metric` and `value`.
 
 ```{r}
-summarizedDataLong <- gather(summarizedData, metric, value)
+summarizedDataLong <- pivot_longer(summarizedData,
+                                   c(ic50_CCLE, auc_CCLE, ic50_GDSC, auc_GDSC),
+                                   names_to = "metric",
+                                   values_to = "value")
 head(summarizedDataLong)
 ```
 
-Oh no! Something went wrong here. Remember, we only want to "gather" the four columns with the IC50 and AUC values. Here, we've gathered **all** of the columns (including the `cellLine` and `drug` columns). 
-
-To specify that we only want to gather the four columns, we pass these column names to `gather`.
-
-```{r}
-summarizedDataLong <- gather(summarizedData, key = metric, value = value,
-                             ic50_CCLE, auc_CCLE, ic50_GDSC, auc_GDSC)
-head(summarizedDataLong)
-```
-
-Alternatively, since the number of columns we would like to exclude is smaller, we can specify these columns with the a "minus".
+Notice that the former column names (`ic50_CCLE`, `auc_CCLE`, `ic50_GDSC` and `auc_GDSC`) are now in the `metric` column, and the values are in the `value` column. Alternatively, since the number of columns we would like to exclude is smaller, we can specify these columns with the a "minus".
 
 ```{r}
 ## alternatively
-summarizedDataLong <- gather(summarizedData, key = metric, value = value,
-                             -cellLine, -drug)
+summarizedDataLong <- pivot_longer(summarizedData,
+                                   -c(cellLine, drug),
+                                   names_to = "metric",
+                                   values_to = "value")
 head(summarizedDataLong)
 ```
 
 The result is the same!
 
-Now, we have a new "key" column (`metric`) with the names of the columns that were gathered and a new "value" column (`value`) with the original entries of those columns.
+Now, we have a new column of the names (`metric`) and a new column (`value`) with the original entries of those columns.
 
-The `gather` and `spread` functions are opposites. Therefore, we can undo the `gather` operation above by calling `spread`.
+The `pivot_longer` and `pivot_wider` functions are opposites. Therefore, we can undo the `pivot_longer` operation above by calling `pivot_wider`.
 
 ```{r}
-summarizedDataUndo <- spread(summarizedDataLong, key = metric, value = value)
+summarizedDataUndo <- pivot_wider(summarizedDataLong,
+                                  names_from = metric,
+                                  values_from = value)
 head(summarizedDataUndo)
 ```
 

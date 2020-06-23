@@ -1,3 +1,5 @@
+% Code of Conduct
+
 # Code of Conduct
 
 We (the organizers and facilitators of the 2020 Replicathon at UPR-RP) are committed to providing a safe, inclusive, welcoming, and harassment-free experience for everyone. This Code of Conduct is based on the [rOpenSci Code of Conduct](https://ropensci.org/code-of-conduct/).

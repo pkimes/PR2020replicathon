@@ -2,7 +2,12 @@
 #'
 #' (c) 2017 Alejandro Reyes, Keegan Korthauer
 #' (c) 2019 Patrick Kimes, Kelly Street
+#' (c) 2020 Patrick Kimes
 
+## use earlier stable version of PharmacoGx package
+remotes::install_github("bhklab/PharmacoGx", ref = "RELEASE_3_10")
+
+## load libraries
 library(Biobase)
 library(PharmacoGx)
 library(tidyverse)
@@ -18,6 +23,7 @@ common <- intersectPSet(list('CCLE' = CCLE, 'GDSC' = GDSC),
 
 ## specify output directory
 dir.create("data", showWarnings = FALSE)
+
 
 ## ##############################################################################
 ## Parse raw dose and viability measures merged by Haibe-Kains et al. (2014)

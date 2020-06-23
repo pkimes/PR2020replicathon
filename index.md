@@ -1,8 +1,15 @@
 # Replicathon 2020 (IQ BIO REU, UPR-RP)
 
-Before getting started, check out the [**intro slides**](https://speakerdeck.com/pkimes/20190712-iqbio)!
 
-Clone or download [this repository](https://github.com/pkimes/PR2020replicathon) to your computer and open the `.Rmd` files with [RStudio](https://rstudio.com/).
+## Getting Started
+
+Check out the [**introduction slides**](https://speakerdeck.com/pkimes/20190712-iqbio) to review the goals and context for the event! If you're interested in learning more, links to relevant papers are included in the [Useful Links](#useful-links) section below. There are a couple ways that you can get started.
+
+1. **If you have R already installed and ready to go**, clone or download [this repository](https://github.com/pkimes/PR2020replicathon) to your computer and open the `.Rmd` files with [RStudio](https://rstudio.com/) or any other editor that you're comfortable using.
+2. **If you don't have R installed on your computer**, create a free account with [RStudio Cloud](https://rstudio.cloud/), click the blue dropdown arrow next to **[New Project]**, select **[New Project from Git Repo]**, and enter this GitHub repo URL: https://github.com/pkimes/PR2020replicathon 
+
+Free accounts on RStudio Cloud have unlimited access to cloud computing until August 3, 2020! Unfortunately, after that, free accounts will be limited to 15 hours per month.
+
 
 ## Main Analysis Template
 

@@ -70,7 +70,7 @@ For full reproducibility, this is the script to generate the `RDS` files. This s
 - Jill Lundell
 - Patrick Kimes
 
-<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQSSj927ztwderiUqJdz-mBYKhwPxWl7F_wM6B9iu7w92LdXWWTRFG1gqNnwtzerBUrLwXfC-fB32bl/pubhtml?gid=0&amp;single=true&amp;widget=true&amp;headers=false" width="570" height="400"></iframe>
+<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQSSj927ztwderiUqJdz-mBYKhwPxWl7F_wM6B9iu7w92LdXWWTRFG1gqNnwtzerBUrLwXfC-fB32bl/pubhtml?gid=0&amp;single=true&amp;widget=true&amp;headers=false" width="650" height="400"></iframe>
 
 ## Useful Links
 

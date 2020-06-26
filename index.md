@@ -9,6 +9,11 @@ Check out the [**introduction slides**](https://speakerdeck.com/pkimes/20190712-
 
 Free accounts on RStudio Cloud have unlimited access to cloud computing until August 3, 2020! Unfortunately, after that, free accounts will be limited to 15 hours per month.
 
+## Reinforcement Questions
+
+After going over the introductory slides and presentation, work through these *reinforcement questions* to make sure you and your team has a good understanding of replicability and the problem.
+
+- [`reinforcement questions`](tutorials/00_reinforcement_questions.html)
 
 ## Main Analysis Template
 

@@ -61,6 +61,17 @@ For full reproducibility, this is the script to generate the `RDS` files. This s
 
 * [`downloadData.R`](https://github.com/pkimes/PR2020replicathon/blob/master/downloadData.R) : a script that uses the [PharmacoGx](http://bioconductor.org/packages/PharmacoGx/) package to format two datasets (raw and summary level) and save them as `RDS` files. 
 
+## Mentors
+
+- Luli Zou
+- Ana Betty Villaseñor-Altamirano
+- Kelly Street
+- Mercedeh Movassagh
+- Jill Lundell
+- Patrick Kimes
+
+<iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQSSj927ztwderiUqJdz-mBYKhwPxWl7F_wM6B9iu7w92LdXWWTRFG1gqNnwtzerBUrLwXfC-fB32bl/pubhtml?gid=0&amp;single=true&amp;widget=true&amp;headers=false" width="570" height="400"></iframe>
+
 ## Useful Links
 
 * [CCLE (Cancer Cell Line Encyclopedia) Study](https://www.ncbi.nlm.nih.gov/pubmed/22460905) from March 2012
